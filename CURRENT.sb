@@ -1,0 +1,34 @@
+FP = "C:\Users\Judy\Documents\Greenpower\BEDFORD TELE.txt"
+last = 0
+GraphicsWindow.PenWidth = 0.7
+scale = 100
+scaleV = 100
+scalee = 100
+For i = 1 To 500000 Step 100
+    GraphicsWindow.PenColor = "Black"
+  temp = File.ReadLine(FP,i)
+  last = data
+  point = Text.GetIndexOf(temp,".")
+  data = Text.GetSubText(temp,1,point)
+  data = data*1
+  GraphicsWindow.DrawLine((i-1)/(scale),last*9,i/(scale),data*9)
+  data = Text.GetSubText(temp,1,Text.GetIndexOf(temp,"."))
+  GraphicsWindow.PenColor = "Blue"
+  temp = Text.GetSubTextToEnd(temp,Text.GetIndexOf(temp,",")+1)
+  pointV = Text.GetIndexOf(temp,",")
+  lastV = datav
+  datav = Text.GetSubText(temp,1,pointv-1)
+  datav = datav*1
+  GraphicsWindow.DrawLine((i-1)/(scaleV),lastV*9,i/(scaleV),dataV*9)
+
+  GraphicsWindow.PenColor = "Red"
+  temp = Text.GetSubTextToEnd(temp,Text.GetIndexOf(temp,",")+1)
+  pointE = Text.GetIndexOf(temp,",")
+  laste = datae
+  datae = Text.GetSubText(temp,1,pointe-1)
+  datae = datae*1
+  GraphicsWindow.ShowMessage(datae,"")
+  GraphicsWindow.DrawLine((i-1)/(scalee),laste*9,i/(scalee),datae*9)
+  
+EndFor
+

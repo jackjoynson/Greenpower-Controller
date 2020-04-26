@@ -1,0 +1,707 @@
+setup()
+mainmenu()
+
+
+Sub setup
+  GraphicsWindow.Title = "Greenpower Telemetry Processor by: Jack Joynson"
+  GraphicsWindow.Width = 1000
+  GraphicsWindow.Height = 500
+  Controls.ButtonClicked = buttons
+EndSub
+
+Sub mainmenu
+  GraphicsWindow.Clear()
+  GraphicsWindow.Width = 1000
+  GraphicsWindow.Height = 500
+  GraphicsWindow.PenColor = "black"
+  GraphicsWindow.BrushColor = "black"
+  GraphicsWindow.DrawImage(ImageList.LoadImage(Program.Directory+"\bg.jpg"),0,-30)
+  gpsPlotButt = Controls.AddButton("PLOT GPS LAT v LON",25,175)
+  Controls.SetSize(gpsPlotButt,200,40)
+  raceTimePlotButt = Controls.AddButton("PLOT BBK RACE DATA",250,175)
+  Controls.SetSize(raceTimePlotButt,200,40)
+EndSub
+
+Sub buttons
+  lastbutton = Controls.LastClickedButton
+  If lastbutton = gpsPlotButt Then
+    gpsPlot()
+  ElseIf lastbutton = mainmenubutt then
+    mainmenu()
+  elseif lastbutton = raceTimePlotButt then
+    raceplot()
+  elseif lastbutton = enterbutt Then
+    servernumber = Controls.GetTextBoxText(serverDirBox)
+    If servernumber = "" Or servernumber = "XXX" Then
+      GraphicsWindow.ShowMessage("YOU MUST ENTER THE RACE NUMBER INTO THE TEXTBOX","Warning - missing data")
+    Else
+      If Text.GetLength(servernumber) = 3 then
+        loadingserver = Shapes.AddText("Attempting to communicate with server")
+        Shapes.Move(loadingserver,250,250)
+        contactServer()
+      Else
+        GraphicsWindow.ShowMessage("RACE NUMBER MUST BE 3 DIGITS","Incorrect length")
+      EndIf
+    EndIf
+  ElseIf lastbutton = helpbutt then
+    TextWindow.Show()
+    TextWindow.Title = "HELP - Lap grapher JJS"
+    TextWindow.WriteLine("Quick numbers:")
+    TextWindow.WriteLine("502 - Reprobation - Renishaw plc")
+    TextWindow.WriteLine("507 - Probation IV - Renishaw plc")
+    TextWindow.WriteLine("546 - REC 349 - Renishaw plc")
+    TextWindow.WriteLine("2   - Rotary Racer - Chipping sodbury school")
+    TextWindow.WriteLine("501 - JET - Cullimore racing")
+    TextWindow.WriteLine("540 - F-eV - JLR Driven")
+    TextWindow.WriteLine("511	 - Project E - JLR Driven")
+    TextWindow.WriteLine("545	 - Stealth - Stealth Racing ")
+    
+  ElseIf lastbutton = toggletimer then
+    If active = "false" then
+      active = "true"
+      Controls.SetButtonCaption(toggletimer,"Auto Update OFF")
+      Timer.Resume()
+    else
+      active = "false"
+      Controls.SetButtonCaption(toggletimer,"Auto Update ON ")
+      Timer.pause()
+    EndIf
+  elseif lastbutton = saveall then
+    temp = Controls.GetTextBoxText(intervalbox)
+    If temp = "" or 0 then
+      GraphicsWindow.ShowMessage("Invalid Interval - cannot be zero","Invalid entry")
+    Else
+      interval = temp
+      Timer.Interval = (interval*1000)
+      If active = "true" then
+        Timer.Resume()
+      Else
+        Timer.Pause()
+      EndIf
+    EndIf
+    
+    temp = Controls.GetTextBoxText(yofsetbox)
+    If temp = "" or 0 then
+      GraphicsWindow.ShowMessage("Invalid Y offset - cannot be zero","Invalid entry")
+    Else
+      ystart = temp
+    EndIf
+    
+    temp = Controls.GetTextBoxText(dataofsetbox)
+    If temp = "" or 0 then
+      GraphicsWindow.ShowMessage("Invalid data ofset - cannot be zero","Invalid entry")
+    Else
+      offset = temp
+    EndIf
+    
+    temp = Controls.GetTextBoxText(scalebox)
+    If temp = "" or 0 then
+      GraphicsWindow.ShowMessage("Invalid scale - cannot be zero","Invalid entry")
+    Else
+      scale = temp
+    EndIf
+    GraphicsWindow.Clear()
+    'render()
+    'redraw()
+    contactServer()
+  EndIf
+EndSub
+
+Sub contactServer
+  
+  serverdata = Network.GetWebPageContents("http://www.bbk-online.net/gpt/lap"+servernumber+".htm")
+  If serverdata = "" Then
+    GraphicsWindow.showMessage("No data recieved from server - Check your connection and your racenumber","No data!")
+  Else
+    start()
+  EndIf
+EndSub
+
+Sub gpsPlot
+  GraphicsWindow.Clear()
+  c = 1
+  i = 1
+  TextWindow.WriteLine("Resolution? 12?")
+  temp = TextWindow.ReadNumber()
+  If temp = "" then
+    resolution = 12
+  Else
+    resolution = temp
+  EndIf
+  latmin = 99999
+  lonmin = 99999
+  latmax = -99999
+  lonmax = -99999
+  scale = 50000
+  startx = 200
+  starty = 50
+  TextWindow.WriteLine("Would you like to add lat and lon min and max? For debug purposes? Enter Y or N")
+  checkLAP = TextWindow.Read()
+  If checkLAP = "Y" Or checkLAP = "y" Then
+    checkLAP = "True"
+    '51.63456324428723,-2.3839456228677816
+    TextWindow.WriteLine("Lat min?")
+    temp = TextWindow.ReadNumber()
+    If temp = "" then
+      TextWindow.WriteLine("INVALID")
+      gpsPlot()
+    Else
+      setlatmin = temp
+    EndIf
+    'setlatmin = 51.63456324428723-0.00025
+    TextWindow.WriteLine("Lat max?")
+    temp = TextWindow.ReadNumber()
+    If temp = "" then
+      TextWindow.WriteLine("INVALID")
+      gpsPlot()
+    Else
+      setlatmax = temp
+    EndIf
+    'setlatMax = 51.63456324428723+0.00025
+    TextWindow.WriteLine("Lon min?")
+    temp = TextWindow.ReadNumber()
+    If temp = "" then
+      TextWindow.WriteLine("INVALID")
+      gpsPlot()
+    Else
+      setlonmin = temp
+    EndIf
+    'setlonMin = -2.3839456228677816-0.00025
+    TextWindow.WriteLine("Lon max?")
+    temp = TextWindow.ReadNumber()
+    If temp = "" then
+      TextWindow.WriteLine("INVALID")
+      gpsPlot()
+    Else
+      setlonMax= temp
+    EndIf
+  Else
+    checkLAP = "false"
+  EndIf
+  TextWindow.WriteLine("Would you like to step through the data when rendering? Y or N")
+  stepthro = TextWindow.Read()
+  If stepthro = "Y" Or stepthro = "y" Then
+    stepthro = "True"
+  Else
+    stepthro = "False"
+  EndIf
+  'setlonMax = -2.3839456228677816+0.00025
+  files = File.GetFiles(Program.Directory+"\Gps\")
+  TextWindow.WriteLine("SELECT GPS FILE NUM")
+  For a = 1 To Array.GetItemCount(files)
+    TextWindow.WriteLine(a+") "+files[a])
+  EndFor
+  filenum = TextWindow.ReadNumber()
+  
+  While c = 1
+    i = i +1
+    l = File.ReadLine(Files[filenum],i)
+    If l = ""  Then
+      getMaxandAvg()
+      checkifLapsFile()
+      c=0
+    else
+      comma = Text.GetIndexOf(l,",")
+      If comma > 0 then
+        after = Text.GetSubTextToEnd(l,comma+1)
+        comma = Text.GetIndexOf(after,",")
+        If comma > 0  then
+          after = Text.GetSubTextToEnd(after,comma+1)
+          comma = Text.GetIndexOf(after,",")
+          If comma > 0 then
+            lat[i] = Text.GetSubText(after,1,comma-1)
+            after = Text.GetSubTextToEnd(after,comma)
+            lon[i] = Text.GetSubTextToEnd(after,2)
+            If lat[i] < latmin Then
+              latmin = lat[i]
+            EndIf
+            If lon[i] < lonmin Then
+              lonmin = lon[i]
+            EndIf
+            If lat[i] > latmax then
+              latmax = lat[i]
+            EndIf
+            If lon[i] > lonmax then
+              lonmax = lon[i]
+            EndIf
+            If lat[i] > setlatmin and lat[i] < setlatMax then
+              TextWindow.WriteLine("latPASSED")
+              latPASSED = "true"
+            Else
+              latPASSED = "false"
+              lap[i] = 0
+            EndIf
+            If lon[i] > setlonmin and lon[i] < setlonMax then
+              TextWindow.WriteLine("lonPASSED")
+              If latPASSED = "true" then
+                lap[i] = 1
+                TextWindow.WriteLine("LAP!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                TextWindow.Read()
+              else
+                TextWindow.WriteLine("lonPASSED")
+                lap[i] = 0
+              EndIf
+            EndIf
+          EndIf
+        EndIf
+      EndIf
+    EndIf
+  EndWhile
+  scale = 250/(latmax-latmin)
+  latmin = latmin-0.00001
+  lonmin = lonmin-0.00001
+  lat[1] = latmin
+  lon[1] = latmax
+  If stepthro = "True" Then
+    GraphicsWindow.Left = 0
+    TextWindow.Left = 1000
+    GraphicsWindow.Top = 0
+    TextWindow.Top = 0
+  EndIf
+  For a = 1 To i
+    TextWindow.WriteLine(a+") LAT:"+lat[a]+" and LON:"+lon[a])
+    If stepthro = "True" Then
+      TextWindow.Read()
+    EndIf
+    t1 = startx+((lat[a]-latmin)*scale)
+    t2 = starty+((lon[a]-lonmin)*scale)
+    t3 = startx+((lat[a-1]-latmin)*scale)
+    t4 = starty+((lon[a-1]-lonmin)*scale)
+    If t1 < 1000 And t1 > 0 And t2 < 1000 And t2 > 0 And t3 < 1000 And t3 > 0 And t4 < 1000 And t4 > 0 then
+      If lap[a] = 1 then
+        GraphicsWindow.penColor = "blue"
+        GraphicsWindow.DrawLine(t3,t2,t1,t4)
+      Else
+        GraphicsWindow.penColor = "black"
+      EndIf
+      
+      GraphicsWindow.DrawLine(t1,t2,t3,t4) 
+    Else
+      TextWindow.WriteLine("ERROR, POINT OUT OF RANGE")
+    endif
+  EndFor
+  mainmenubutt = Controls.AddButton("MAIN MENU",0,0)
+EndSub
+
+Sub getMaxandAvg
+  finaldata = File.ReadLine(Files[filenum],i-1)
+  locavg = Text.GetIndexOf(finaldata,"Ave")
+  GraphicsWindow.DrawText(750,50,Text.GetSubText(finaldata,1,locavg-1))
+  GraphicsWindow.DrawText(750,80,Text.GetSubTextToEnd(finaldata,locavg))
+EndSub
+Sub checkifLapsFile
+  code = Text.GetSubTextToEnd(files[filenum],Text.GetIndexOf(files[filenum],"GPSData")+7)
+  bestlaptime = 99999
+  bestlaptimeNUM = 0
+  GraphicsWindow.DrawText(750,115,"LAP TIMES:")
+  For checkFile = 1 To Array.GetItemCount(files)
+    If Text.IsSubText(files[checkFile],code) Then
+      If checkFile = filenum then
+        'SAME FILE SO IGNORE
+      else
+        d = 1
+        j = 0
+        While d = 1
+          j = j +1
+          line = File.ReadLine(Files[checkFile],j+1)
+          If line = ""  Then
+            d=0
+          else
+            comma = Text.GetIndexOf(line,",")
+            If comma > 0 then
+              after = Text.GetSubTextToEnd(line,comma+1)
+              comma = Text.GetIndexOf(after,",")
+              If comma > 0  then
+                laptime[j] = Text.GetSubTextToEnd(after,comma+1)
+                If laptime[j] < bestlaptime then
+                  bestlaptime = laptime[j]
+                  bestlaptimeNUM = j
+                EndIf
+                GraphicsWindow.DrawText(750,115+(j*25),"Lap "+j+": "+laptime[j])
+                
+              EndIf
+            EndIf
+          EndIf
+        EndWhile
+      EndIf
+    EndIf 
+  EndFor
+  GraphicsWindow.DrawLine(750,130+(bestlaptimeNUM*25),900,130+(bestlaptimeNUM*25))
+EndSub
+
+
+Sub raceplot
+  GraphicsWindow.Clear()
+  GraphicsWindow.Title = "Greenpower lap grapher | Jack Joynson Software"
+  setcolours()
+  GraphicsWindow.Width = 500
+  GraphicsWindow.Height = 300
+  GraphicsWindow.FontSize = 14
+  interval = 30
+  Timer.Interval = interval*1000
+  Timer.Tick = tick
+  Timer.Pause()
+  xstart = 25
+  ystart = 525
+  graphwidth = 950
+  offset = 125
+  scale = 1
+  active = "false"
+  
+  'color[1]="IndianRed"
+  color[1]="Red"
+  color[2]="LightCoral"
+  color[3]="Pink"
+  color[4]="Orange"
+  color[19]="LemonChiffon"
+  color[6]="Khaki"
+  color[7]="Violet"
+  color[8]="Blue"
+  color[9]="Lime"
+  color[10]="SeaGreen"
+  color[11]="DarkOliveGreen"
+  color[12]="Cyan"
+  color[13]="SteelBlue"
+  color[14]="Tan"
+  color[15]="Goldenrod"
+  color[16]="Brown"
+  color[17]="Gray"
+  color[18]="DimGray"
+  color[5]="Black"
+  color[20]="DarkOrange"
+  color[21]="Orange"
+  color[22]="Gold"
+  color[23]="Yellow"
+  color[24]="LightYellow"
+  color[25]="LemonChiffon"
+  color[26]="LightGoldenRodYellow"
+  color[27]="PapayaWhip"
+  color[28]="Moccasin"
+  color[29]="PeachPuff"
+  color[30]="PaleGoldenrod"
+  color[31]="Khaki"
+  color[32]="DarkKhaki"
+  color[33]="Lavender"
+  color[34]="Thistle"
+  color[35]="Plum"
+  color[36]="Violet"
+  color[37]="Orchid"
+  color[38]="Fuchsia"
+  color[39]="Magenta"
+  color[40]="MediumOrchid"
+  color[41]="MediumPurple"
+  color[42]="BlueViolet"
+  color[43]="DarkViolet"
+  color[44]="DarkOrchid"
+  color[45]="DarkMagenta"
+  color[46]="Purple"
+  color[47]="Indigo"
+  color[48]="SlateBlue"
+  color[49]="DarkSlateBlue"
+  color[50]="MediumSlateBlue"
+  color[51]="GreenYellow"
+  color[52]="Chartreuse"
+  color[53]="LawnGreen"
+  color[54]="Lime"
+  color[55]="LimeGreen"
+  color[56]="PaleGreen"
+  color[57]="LightGreen"
+  color[58]="MediumSpringGreen"
+  color[59]="SpringGreen"
+  color[60]="MediumSeaGreen"
+  color[61]="SeaGreen"
+  color[62]="ForestGreen"
+  color[63]="Green"
+  color[64]="DarkGreen"
+  color[65]="YellowGreen"
+  color[66]="OliveDrab"
+  color[67]="Olive"
+  color[68]="DarkOliveGreen"
+  color[69]="MediumAquamarine"
+  color[70]="DarkSeaGreen"
+  color[71]="LightSeaGreen"
+  color[72]="DarkCyan"
+  color[73]="Teal"
+  color[74]="Aqua"
+  color[75]="Cyan"
+  color[76]="LightCyan"
+  color[77]="PaleTurquoise"
+  color[78]="Aquamarine"
+  color[79]="Turquoise"
+  color[80]="MediumTurquoise"
+  color[81]="DarkTurquoise"
+  color[82]="CadetBlue"
+  color[83]="SteelBlue"
+  color[84]="LightSteelBlue"
+  color[85]="PowderBlue"
+  color[86]="LightBlue"
+  color[87]="SkyBlue"
+  color[88]="LightSkyBlue"
+  color[89]="DeepSkyBlue"
+  color[90]="DodgerBlue"
+  color[91]="CornflowerBlue"
+  color[92]="MediumSlateBlue"
+  color[93]="RoyalBlue"
+  color[94]="Blue"
+  color[95]="MediumBlue"
+  color[96]="DarkBlue"
+  color[97]="Navy"
+  color[98]="MidnightBlue"
+  color[99]="Cornsilk"
+  color[100]="BlanchedAlmond"
+  color[101]="Bisque"
+  color[102]="NavajoWhite"
+  color[103]="Wheat"
+  color[104]="BurlyWood"
+  color[105]="Tan"
+  color[106]="RosyBrown"
+  color[107]="SandyBrown"
+  color[108]="Goldenrod"
+  color[109]="DarkGoldenrod"
+  color[110]="Peru"
+  color[111]="Chocolate"
+  color[112]="SaddleBrown"
+  color[113]="Sienna"
+  color[114]="Brown"
+  color[115]="Maroon"
+  color[116]="White"
+  color[117]="Snow"
+  color[118]="Honeydew"
+  color[119]="MintCream"
+  color[120]="Azure"
+  color[121]="AliceBlue"
+  color[122]="GhostWhite"
+  color[123]="WhiteSmoke"
+  color[124]="Seashell"
+  color[125]="Beige"
+  color[126]="OldLace"
+  color[127]="FloralWhite"
+  color[128]="Ivory"
+  color[129]="AntiqueWhite"
+  color[130]="Linen"
+  color[131]="LavenderBlush"
+  color[132]="MistyRose"
+  color[133]="Gainsboro"
+  color[134]="LightGray"
+  color[135]="Silver"
+  color[136]="DarkGray"
+  color[137]="Gray"
+  color[138]="DimGray"
+  color[139]="LightSlateGray"
+  color[140]="SlateGray"
+  color[141]="DarkSlateGray"
+  
+  racemainMenu()
+EndSub
+Sub racemainMenu
+  serverDirBox = Controls.AddTextBox(299,73)
+  Controls.SetSize(serverDirBox,50,28)
+  Controls.SetTextBoxText(serverDirBox,"XXX")
+  GraphicsWindow.DrawText(25,75,"http://www.bbk-online.net/gpt/lap")
+  GraphicsWindow.DrawText(355,75,".htm")
+  enterbutt = Controls.AddButton("Start Graphing",100,155)
+  Controls.SetSize(enterbutt,250,50)
+  GraphicsWindow.FontSize = 16
+  GraphicsWindow.DrawboundText(25,25,450,"Enter the race number (from the URL of the bbk website) into the textbox ")
+  
+EndSub
+
+
+Sub tick
+  GraphicsWindow.Clear()
+  contactServer()
+EndSub
+
+Sub start
+  compTOT = 0
+  GraphicsWindow.Width = 1250
+  GraphicsWindow.Height = 550
+  GraphicsWindow.Clear()
+  
+  loading = Shapes.AddText("PROCESSING SERVER DATA")
+  
+  firsttablestart = Text.GetIndexOf(serverdata,"<table")+6
+  firsttableend = Text.GetIndexOf(serverdata,"</table")
+  predata = Text.GetSubText(serverdata,firsttablestart,firsttableend-firsttablestart)
+  startheat = Text.GetIndexOf(predata,"<td align=left class=TEXT>")+26
+  afterheat = Text.GetIndexOf(predata,"</td>")
+  heat = Text.GetSubText(predata,startheat,afterheat-startheat)
+  
+  afterfirst = Text.GetSubTextToEnd(serverdata,firsttableend+7)
+  secondtablestart = Text.GetIndexOf(afterfirst,"<table")+6
+  secondtableend = Text.GetIndexOf(afterfirst,"</table")
+  tabledata = Text.GetSubText(afterfirst,secondtablestart,secondtableend-secondtablestart)
+  
+  firstrowstart =Text.GetIndexOf(tabledata,"class=RHH>L/C</td>")+18
+  firstrowend = Text.GetIndexOf(tabledata,"</tr>")
+  firstrow = Text.GetSubText(tabledata,firstrowstart,firstrowend-firstrowstart)
+  postdata = Text.GetSubTextToEnd(tabledata,firstrowend+5)
+  passdata = firstrow
+  splitcompetitors()
+  
+  countrows = 1
+  stillrows = "true"
+  While stillrows = "true"
+    
+    rowstart =Text.GetIndexOf(postdata,("<td align=left class=RHH>"+countrows+"</td>"))+30
+    rowend = Text.GetIndexOf(postdata,"</tr>")
+    if rowstart = 30 Or rowend = 0 Then
+      numrows = countrows
+      stillrows = "false"
+    else
+      row = Text.GetSubText(postdata,rowstart,rowend-rowstart)
+      postdata = Text.GetSubTextToEnd(postdata,rowend+5)
+      
+      passdata = row
+      passrow = countrows
+      splitrow()
+      countrows = countrows+1
+    endif
+  EndWhile
+  
+  Shapes.SetText(loading,numcompetitors+" Competitors")
+  Shapes.HideShape(loading)
+  render()
+  redraw()
+EndSub
+
+Sub splitcompetitors
+  spliting = "true"
+  countsplits = 0
+  While spliting = "true"
+    startdata =  Text.GetIndexOf(passdata,"<td align=right class=")+26
+    If startdata = 26 Then
+      spliting = "false"
+      numcompetitors = countsplits
+    Else
+      countsplits = countsplits +1
+      enddata = Text.GetIndexOf(passdata,"</td>")
+      competitor[countsplits] = Text.GetSubText(passdata,startdata,enddata-startdata)
+      passdata = Text.GetSubTextToEnd(passdata,enddata+5)
+    EndIf
+  EndWhile
+EndSub
+Sub splitrow
+  spliting = "true"
+  countsplits = 0
+  While spliting = "true"
+    startdata =  Text.GetIndexOf(passdata,"<td align=right class=")+26
+    If startdata = 26 Then
+      spliting = "false"
+    Else
+      countsplits = countsplits +1
+      enddata = Text.GetIndexOf(passdata,"</td>")
+      temp = Text.GetSubText(passdata,startdata,enddata-startdata)
+      prebuild = ""
+      postbuild = ""
+      seconds = "false"
+      For b = 1 To Text.GetLength(temp)+1
+        char = Text.GetSubText(temp,b,1)
+        'GraphicsWindow.ShowMessage(char,build)
+        If char = "'" then
+          seconds = "true"
+          char = "."
+        else
+          If seconds = "true" then
+            postbuild = Text.Append(postbuild,char)
+          else
+            prebuild = Text.Append(prebuild,char)
+          EndIf
+        EndIf
+      EndFor
+      data[passrow][countsplits] = (prebuild*60)+postbuild
+      If Text.IsSubText(data[passrow][countsplits],">") then
+        data[passrow][countsplits] = Text.GetSubTextToEnd(data[passrow][countsplits],2)
+      EndIf
+      compTOT[countsplits] = compTOT[countsplits]+data[passrow][countsplits]
+      passdata = Text.GetSubTextToEnd(passdata,enddata+5)
+    EndIf
+  EndWhile
+EndSub
+Sub render
+  For b = 1 To numcompetitors
+    x[0][b] = xstart
+    y[0][b] = 50
+    ended[b] = "false"
+  EndFor
+  filePath = Program.Directory+"\temp.txt" 'REMEMBER CHANGE THIS HERE
+  appended = ""
+  For i = 1 To numrows
+    For j = 1 To numcompetitors
+      GraphicsWindow.PenColor = color[j]
+      GraphicsWindow.BrushColor = color[j]
+      x[i][j] = xstart + (graphwidth/numrows)*(i)
+      y[i][j] = ystart - (((data[i][j])-offset)*scale)
+      GraphicsWindow.DrawLine(x[i-1][j],y[i-1][j],x[i][j],y[i][j])
+      TextWindow.WriteLine("L"+i+" C"+j+": "+data[i][j])
+      appended=Text.Append(appended,data[i][j]+",")
+      If ended[j] = "true" then 
+        'Do nothing
+      Else
+        If data[i][j] = "" Then
+          ended[j] = "true"
+          GraphicsWindow.DrawText(x[i-1][j],y[i-1][j],competitor[j])
+        EndIf
+      endif
+    EndFor
+  EndFor
+  File.WriteContents(filePath,appended)
+  setcolours()
+EndSub
+Sub setcolours
+  GraphicsWindow.BrushColor = "SlateBlue"
+  GraphicsWindow.PenColor = "SlateBlue"
+EndSub
+Sub redraw
+  GraphicsWindow.DrawLine(25,25,25,525)
+  GraphicsWindow.DrawLine(25,525,1025,525)
+  GraphicsWindow.BrushColor = "White"
+  GraphicsWindow.PenColor = "Black"
+  GraphicsWindow.FillRectangle(0,0,1050,38)
+  GraphicsWindow.BrushColor = "Black"
+  GraphicsWindow.DrawRectangle(0,0,1050,38)
+  GraphicsWindow.DrawLine(205,0,205,38)
+  GraphicsWindow.DrawLine(898,0,898,38)
+  setcolours()
+  ylabel = Shapes.AddText("Lap time")
+  Shapes.Rotate(ylabel,90)
+  Shapes.Move(ylabel,-20,80)
+  xlabel = Shapes.AddText("Lap number")
+  Shapes.Move(xlabel,950,530)
+  GraphicsWindow.DrawText(1050,40,numcompetitors+" Competitors")
+  GraphicsWindow.DrawboundText(1,1,202,heat)
+  If active = "true" then
+    toggletimer = Controls.AddButton("Auto Update OFF",900,2)
+  Else
+    toggletimer = Controls.AddButton("Auto Update ON ",900,2)
+  EndIf
+  GraphicsWindow.DrawText(640,7,"Interval (s):")
+  intervalbox = controls.AddTextBox(750,2)
+  Controls.SetSize(intervalbox,40,28)
+  Controls.SetTextBoxText(intervalbox,interval)
+  saveall = Controls.AddButton("Set",800,2)
+  
+  dataofsetbox = Controls.AddTextBox(575,2)
+  Controls.SetSize(dataofsetbox,45,28)
+  GraphicsWindow.DrawText(475,7,"Data ofset: ")
+  Controls.SetTextBoxText(dataofsetbox,offset)
+  mainmenubutt = Controls.AddButton("Main menu",1055,2)
+  For g = 1 To 20
+    GraphicsWindow.DrawText(1055,65+(21*(g-1)),compTOT[g])
+  endfor
+  For h = 20 To 40
+    GraphicsWindow.DrawText(1155,65+(21*(h-20)),compTOT[h])
+  endfor
+  yofsetbox = Controls.AddTextBox(410,2)
+  Controls.SetSize(yofsetbox,45,28)
+  GraphicsWindow.DrawText(335,7,"Y ofset: ")
+  Controls.SetTextBoxText(yofsetbox,ystart)
+  
+  scalebox = Controls.AddTextBox(270,2)
+  Controls.SetSize(scalebox,50,28)
+  GraphicsWindow.DrawText(210,7,"Scale: ")
+  Controls.SetTextBoxText(scalebox,scale)
+  
+  helpbutt = Controls.AddButton("?",850,2)
+  
+EndSub

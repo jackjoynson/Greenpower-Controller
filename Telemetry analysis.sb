@@ -1,0 +1,61 @@
+Controls.ButtonClicked = buttons
+setGraphicsWindow()
+setVariables()
+setControls()
+
+Sub buttons
+  lastButton = Controls.LastClickedButton
+  If lastButton = devModeButton Then
+    TextWindow.Show()
+    TextWindow.Title = "Dev Com Mode"
+    startDevMode()
+  EndIf
+EndSub
+
+Sub setGraphicsWindow
+  GraphicsWindow.Width = 1250
+  GraphicsWindow.Height = 575
+  GraphicsWindow.Title = "Telemetry analysis program - Jack Joynson Software"
+  GraphicsWindow.BrushColor = "FireBrick"
+  GraphicsWindow.FillRectangle(0,0,225,800)
+  GraphicsWindow.FillRectangle(0,0,2500,50)
+EndSub
+
+Sub setVariables
+  graphX = 250
+  graphY = 75
+  xmargin = 2
+  ymargin = 2
+  buttWidth = 125
+  buttHeight = (50-(ymargin*2))
+EndSub
+
+Sub setControls
+  addDataButton = Controls.AddButton("Add Data",xmargin,ymargin)
+  Controls.SetSize(addDataButton,buttWidth,buttHeight)
+  addLineButton = Controls.AddButton("Add Line",(2*xmargin)+buttWidth,ymargin)
+  Controls.SetSize(addLineButton,buttWidth,buttHeight)
+  removeLineButton = Controls.AddButton("Remove Line",(3*xmargin)+(2*buttWidth),ymargin)
+  Controls.SetSize(removeLineButton,buttWidth,buttHeight)
+  devModeButton = Controls.AddButton("Command Mode",(4*xmargin)+(3*buttWidth),ymargin)
+  Controls.SetSize(devModeButton,buttWidth,buttHeight)
+EndSub
+
+Sub startDevMode
+  TextWindow.WriteLine("Enter command:...")
+  command =text.ConvertToLowerCase(TextWindow.Read())
+  If command = "clear" Then
+    TextWindow.Clear()
+  ElseIf command = "end" then
+    Program.End()
+  elseif Text.IsSubText(command,"getfiles(") then
+    spoint = Text.GetIndexOf(command,"getFiles(")+10
+    epoint = Text.GetIndexOf(command,")")
+    direct = Text.GetSubText(command,spoint,epoint-spoint)
+    TextWindow.WriteLine(File.GetFiles(direct))
+  Else
+    TextWindow.WriteLine("Unknown command")
+  EndIf
+  startDevMode()
+EndSub
+    

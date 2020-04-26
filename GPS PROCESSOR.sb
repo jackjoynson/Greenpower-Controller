@@ -1,0 +1,105 @@
+GraphicsWindow.Title = "Jack Joynson Software - GPS TELEMETRY PROCESSOR"
+GraphicsWindow.Width = 1100
+GraphicsWindow.Height = 510
+c = 1
+i = 1
+resolution = 12
+latmin = 99999
+lonmin = 99999
+latmax = -99999
+lonmax = -99999
+scale = 50000
+startx = 200
+starty = 50
+'51.63456324428723,-2.3839456228677816
+
+setlatmin = 51.63456324428723-0.00025
+setlatMax = 51.63456324428723+0.00025
+setlonMin = -2.3839456228677816-0.00025
+setlonMax = -2.3839456228677816+0.00025
+files = File.GetFiles(Program.Directory+"\Gps\")
+For a = 1 To Array.GetItemCount(files)
+  TextWindow.WriteLine(a+") "+files[a])
+EndFor
+filenum = TextWindow.ReadNumber()
+
+
+
+While c = 1
+  i = i +1
+  l = File.ReadLine(Files[filenum],i)
+  If l = "" Or Text.IsSubText(l,"end") Then
+    c=0
+    TextWindow.WriteLine(i)
+  else
+    comma = Text.GetIndexOf(l,",")
+    If comma > 0 then
+      after = Text.GetSubTextToEnd(l,comma+1)
+      comma = Text.GetIndexOf(after,",")
+      If comma > 0  then
+        after = Text.GetSubTextToEnd(after,comma+1)
+        comma = Text.GetIndexOf(after,",")
+        If comma > 0 then
+          lat[i] = Text.GetSubText(after,1,comma-1)
+          after = Text.GetSubTextToEnd(after,comma)
+          lon[i] = Text.GetSubTextToEnd(after,2)
+          If lat[i] < latmin Then
+            latmin = lat[i]
+          EndIf
+          If lon[i] < lonmin Then
+            lonmin = lon[i]
+          EndIf
+          If lat[i] > latmax then
+            latmax = lat[i]
+          EndIf
+          If lon[i] > lonmax then
+            lonmax = lon[i]
+          EndIf
+          If lat[i] > setlatmin and lat[i] < setlatMax then
+            TextWindow.WriteLine("latPASSED")
+            latPASSED = "true"
+          Else
+            latPASSED = "false"
+            lap[i] = 0
+          EndIf
+          If lon[i] > setlonmin and lon[i] < setlonMax then
+            TextWindow.WriteLine("lonPASSED")
+            If latPASSED = "true" then
+              lap[i] = 1
+              TextWindow.WriteLine("LAP!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+              TextWindow.Read()
+            else
+              TextWindow.WriteLine("lonPASSED")
+              lap[i] = 0
+            EndIf
+          EndIf
+        EndIf
+      EndIf
+    EndIf
+  EndIf
+EndWhile
+TextWindow.Read()
+scale = 250/(latmax-latmin)
+latmin = latmin-0.00001
+lonmin = lonmin-0.00001
+lat[1] = latmin
+lon[1] = latmax
+For a = 1 To i
+  TextWindow.WriteLine(a+") LAT:"+lat[a]+" and LON:"+lon[a])
+  t1 = startx+((lat[a]-latmin)*scale)
+  t2 = starty+((lon[a]-lonmin)*scale)
+  t3 = startx+((lat[a-1]-latmin)*scale)
+  t4 = starty+((lon[a-1]-lonmin)*scale)
+  If t1 < 1000 And t1 > 0 And t2 < 1000 And t2 > 0 And t3 < 1000 And t3 > 0 And t4 < 1000 And t4 > 0 then
+    If lap[a] = 1 then
+      GraphicsWindow.penColor = "blue"
+      GraphicsWindow.DrawLine(t3,t2,t1,t4)
+    Else
+      GraphicsWindow.penColor = "black"
+    EndIf
+    
+    GraphicsWindow.DrawLine(t1,t2,t3,t4) 
+  Else
+    GraphicsWindow.ShowMessage("INVALID","")
+  endif
+EndFor

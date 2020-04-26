@@ -1,0 +1,20 @@
+filepath = "C:\Users\Judy\Documents\Greenpower\BATTERYDECAY.TXT"
+savefile = "C:\Users\Judy\Documents\Greenpower\VOLTSFINALREPO.TXT"
+reading = "true"
+i = 0
+append = ""
+While reading = "true"
+  i=i+1
+  dataline = File.ReadLine(filepath,i)
+  If dataline = "" then
+    reading = "false"
+    TextWindow.WriteLine(append)
+    File.WriteContents(savefile,append)
+  Else
+    firstcomma = Text.GetIndexOf(dataline,",")+1
+    afterfirst = Text.GetSubTextToEnd(dataline,firstcomma)
+    secondcomma = Text.GetIndexOf(afterfirst,",")
+    voltage = Text.GetSubText(afterfirst,1,secondcomma)
+    append = Text.Append(append,voltage)
+  EndIf
+EndWhile
